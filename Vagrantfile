@@ -6,15 +6,41 @@ Vagrant.configure("2") do |config|
   # https://docs.vagrantup.com.
 
   # Every Vagrant development environment requires a box. You can search for
-  # boxes at https://vagrantcloud.com/search.
-  #config.vm.box = "base"
+  # boxes at https://vagrantcloud.com/search. I'm using an image for centos ver 7
+  # On your Win10 machine, you need the HyperV service running before launching vagrant. Open a Powershell console
+  # and type: "Enable-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V -All" then reboot.
+  # This vagrant is built around a production network automation environment and uses specific directory structures.
+  # This vagrant file should live in: C:\users\%USERNAME%\source\repos\networkvagrant
+	# In \repos, also create	NetworkVars (directory for hostvars and groupvars files)
+	#				NetworkGetters (directory where "get" or read-only scripts are stored)
+	#				NetworkSetters (directory where "set" or write scripts are stored)
+	#				NetworkRoles (directory where ansible roles are stored)
+	#				NetworkConfigs (directory where config files are built prior to deployment)
+	#				NetworkOpstate (directory where device configuration state is stored)
+  # My automation environment uses two service accounts to run scripts: 
+	# svc_rheltowerro to run getter scripts (read-only permissions to protect us from stupid human tricks)
+	# svc_rheltowerrw to run setter scripts (read-write permissions)
+	# I do use Azure Devops in my cicd pipeline and have numerous tokens deployed based on these svc accts, but
+	# that isn't necessary in for using vagrant file in a general sense.
+  # This vagrant is configured to synch teh win file system with the linux file system in vagrant. To do this, you must 
+  # share the c:\users\%USERNAME%\source directory. I use everyone & read/write attributes on my share.
+  #
+  # If you are on a production network, you may encounter proxy or firewall issues when the vagrant starts fetching the centos image
+  # or other packages. You'll just have to work through that with your beauracracy. We all have that to deal with in one way or another.
+  #
+  # To launch vagrant:
+	# Launch the windows CMD console as administrator, change to the NetworkVagrant directory
+	# type: vagrant up
+  # To ssh to vagrant, use Putty to the ip addr (seen in the build output) or type: vagrant ssh in the CMD window
+  # To learn other vagrant commands, google it. If you get into trouble, or something doesn't work right the 1st time, Call Persi!
+	
   config.vm.box = "centos/7"
   config.vm.hostname = "ansible255"
   config.vm.box_download_insecure = true
   config.ssh.insert_key = false
   #config.ssh.password = "vagrant"
   config.ssh.username = "vagrant"
-
+  #watch for the IP address of your vagrant in the console
   config.vm.provider "hyperv" do |hv| 
     hv.vmname = "ansible255"
   end
@@ -22,7 +48,6 @@ Vagrant.configure("2") do |config|
     #Copy some required files to guest VM with host specifc slashes (\ or / )
     #and figure out what the windows username will be (based on who is logged into the host)
   if Vagrant::Util::Platform.windows? then
-    #myHomeDir = ENV["HOMESHAREprint"]
     machinename = ENV["COMPUTERNAME"]
     domain = ENV["USERDNSDOMAIN"]
     fqdn = machinename + "." + domain
@@ -33,7 +58,7 @@ Vagrant.configure("2") do |config|
     config.vm.provision "file", source: ".\\Certs", destination: "/home/vagrant/"
     config.vm.provision "file", source: ".\\NewVagrants", destination: "/home/vagrant/"
     creator = ENV["USERNAME"] #ENV["HOMESHARE"].split('\\').last
-  else
+  else # NOTE: Non-windows machines haven't been tested--not sure this works...
     puts "Vagrant launched from NON-windows machine."
     host = "*nix"
     config.vm.provision "file", source: "./Certs", destination: "/home/vagrant/" 
@@ -206,14 +231,15 @@ Vagrant.configure("2") do |config|
     echo "----------------------------------------------------"
     echo "Configuring File Systems"
     echo "----------------------------------------------------"
-    sudo mount /mnt/netshare
-    #make sure it gets done on subsequent boots too 
-    echo 'sudo mount /mnt/netshare' >> /home/vagrant/.bash_profile
-    if [ $SOURCE != 'svc_rheltowerrw' ]; then
-      if [  $host = "Windows" ]; then 
-        echo 'sudo cp NewVagrants/resolv.conf /etc/resolv.conf' >> /home/vagrant/.bash_profile
-      fi
-    fi
+    # I have a team share that I mount. Uncomment and customize the following lines for your env if you like:
+    #sudo mount /mnt/netshare
+    # make sure it gets done on subsequent boots too 
+    #echo 'sudo mount /mnt/netshare' >> /home/vagrant/.bash_profile
+    #if [ $SOURCE != 'svc_rheltowerrw' ]; then
+      #if [  $host = "Windows" ]; then 
+        #echo 'sudo cp NewVagrants/resolv.conf /etc/resolv.conf' >> /home/vagrant/.bash_profile
+      #fi
+    #fi
     sudo mount /mnt/m
     #make sure it gets done on subsequent boots too
     echo 'sudo mount /mnt/m' >> /home/vagrant/.bash_profile
@@ -306,7 +332,7 @@ Vagrant.configure("2") do |config|
        sudo ln -s "/mnt/m/NetworkConfigs" /etc/ansible/NetworkConfigs
        sudo chown vagrant:vagrant /etc/ansible/NetworkConfigs
       fi    
-    else
+    else  # You may never hit this code block--I do as sometimes I run as svc_rheltowerrw and need to acct for it...
       # we ARE svc_rheltowerrw doing CICD? 
        sudo mkdir "/etc/ansible/NetworkGetters"
        sudo mkdir "/etc/ansible/NetworkOpState"
@@ -324,11 +350,12 @@ Vagrant.configure("2") do |config|
        sudo chown vagrant:vagrant "/etc/ansible/NetworkVars"
        sudo chown vagrant:vagrant "/etc/ansible/NetworkConfigs"
     fi
-
-    #use playbook to clone repos.
-    echo "----------------------------------------------------"
-	  echo "cloning repos"
-	  echo "----------------------------------------------------"
-    sudo ansible-playbook /home/vagrant/NewVagrants/ansible_setup.yml
+    # The following code block runs an ansible script (after ansible installs above) and runs a playbook that clones all my repos
+    # from the master git repository. It's not needed for this basic vagrant use case, but serves as example.
+    # Use playbook to clone repos.
+    #echo "----------------------------------------------------"
+	  #echo "cloning repos"
+    #echo "----------------------------------------------------"
+    #sudo ansible-playbook /home/vagrant/NewVagrants/ansible_setup.yml
   SHELL
 end
