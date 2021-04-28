@@ -10,6 +10,9 @@
 
       To refresh the state, use the `terraform refresh` command. A tutorial on state can be found
       at https://www.terraform.io/docs/state/index.html
+      
+      If you simply want to use the local tfstate, rename this file's extension to tf_ and allow
+      terraform to create it locally (I think). I haven't actually tested that, but seems right.
 
     references:
       - https://www.terraform.io/docs/backends/types/s3.html
