@@ -9,6 +9,8 @@ Resource for sharing the Network Automation helps, cheats, and other morsels
 - Use shared storage to store the tfstate when multiple users will access/share the terraform config and ensure the statefile can be locked while in use and versioned. This config uses an S3 bucket and DynamoDB table in AWS.
 ## Fabric Configuration (TBD)
 ## Tenant Configuration
+##### Note: the actual config may be slightly different than the below content  
+
 #### ***Multiple VRF's per Tenant:***
 >NonProd-VRF  
 >BTS_NonProd-VRF  
